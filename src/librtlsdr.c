@@ -909,7 +909,7 @@ int rtlsdr_set_center_freq(rtlsdr_dev_t *dev, uint32_t freq)
 uint32_t rtlsdr_get_center_freq(rtlsdr_dev_t *dev)
 {
 	if (!dev)
-		return 0;
+		return -1;
 
 	return dev->freq;
 }
@@ -942,7 +942,7 @@ int rtlsdr_set_freq_correction(rtlsdr_dev_t *dev, int ppm)
 int rtlsdr_get_freq_correction(rtlsdr_dev_t *dev)
 {
 	if (!dev)
-		return 0;
+		return -1;
 
 	return dev->corr;
 }
@@ -1051,7 +1051,7 @@ int rtlsdr_set_tuner_gain(rtlsdr_dev_t *dev, int gain)
 int rtlsdr_get_tuner_gain(rtlsdr_dev_t *dev)
 {
 	if (!dev)
-		return 0;
+		return -1;
 
 	return dev->gain;
 }
@@ -1143,7 +1143,7 @@ int rtlsdr_set_sample_rate(rtlsdr_dev_t *dev, uint32_t samp_rate)
 uint32_t rtlsdr_get_sample_rate(rtlsdr_dev_t *dev)
 {
 	if (!dev)
-		return 0;
+		return -1;
 
 	return dev->rate;
 }
@@ -1902,7 +1902,7 @@ uint32_t rtlsdr_get_tuner_clock(void *dev)
 	uint32_t tuner_freq;
 
 	if (!dev)
-		return 0;
+		return -1;
 
 	/* read corrected clock value */
 	if (rtlsdr_get_xtal_freq((rtlsdr_dev_t *)dev, NULL, &tuner_freq))
