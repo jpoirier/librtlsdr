@@ -15,7 +15,7 @@ Build with cmake:
     sudo make install
     sudo ldconfig
 
-To use the dongle as a non-root user:
+To use the dongle as a non-root user
 replace the "cmake ../" with:
 
     cmake ../ -DINSTALL_UDEV_RULES=ON
