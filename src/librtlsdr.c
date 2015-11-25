@@ -906,12 +906,12 @@ int rtlsdr_set_center_freq(rtlsdr_dev_t *dev, uint32_t freq)
 	return r;
 }
 
-uint32_t rtlsdr_get_center_freq(rtlsdr_dev_t *dev)
+int rtlsdr_get_center_freq(rtlsdr_dev_t *dev)
 {
 	if (!dev)
 		return -1;
 
-	return dev->freq;
+	return (int)(dev->freq);
 }
 
 int rtlsdr_set_freq_correction(rtlsdr_dev_t *dev, int ppm)
@@ -921,8 +921,10 @@ int rtlsdr_set_freq_correction(rtlsdr_dev_t *dev, int ppm)
 	if (!dev)
 		return -1;
 
-	if (dev->corr == ppm)
-		return -2;
+	// not sure why this would be an error;
+	// just do what the client requests
+	// if (dev->corr == ppm)
+	// 	return -2;
 
 	dev->corr = ppm;
 
@@ -955,22 +957,20 @@ enum rtlsdr_tuner rtlsdr_get_tuner_type(rtlsdr_dev_t *dev)
 	return dev->tuner_type;
 }
 
+/* all gain values are expressed in tenths of a dB */
+static const int e4k_gains[] = { -10, 15, 40, 65, 90, 115, 140, 165, 190, 215,
+			  240, 290, 340, 420 };
+static const int fc0012_gains[] = { -99, -40, 71, 179, 192 };
+static const int fc0013_gains[] = { -99, -73, -65, -63, -60, -58, -54, 58, 61,
+			       63, 65, 67, 68, 70, 71, 179, 181, 182,
+			       184, 186, 188, 191, 197 };
+static const int fc2580_gains[] = { 0 /* no gain values */ };
+static const int r82xx_gains[] = { 0, 9, 14, 27, 37, 77, 87, 125, 144, 157,
+			     166, 197, 207, 229, 254, 280, 297, 328,
+			     338, 364, 372, 386, 402, 421, 434, 439,
+			     445, 480, 496 };
 int rtlsdr_get_tuner_gains(rtlsdr_dev_t *dev, int *gains)
 {
-	/* all gain values are expressed in tenths of a dB */
-	const int e4k_gains[] = { -10, 15, 40, 65, 90, 115, 140, 165, 190, 215,
-				  240, 290, 340, 420 };
-	const int fc0012_gains[] = { -99, -40, 71, 179, 192 };
-	const int fc0013_gains[] = { -99, -73, -65, -63, -60, -58, -54, 58, 61,
-				       63, 65, 67, 68, 70, 71, 179, 181, 182,
-				       184, 186, 188, 191, 197 };
-	const int fc2580_gains[] = { 0 /* no gain values */ };
-	const int r82xx_gains[] = { 0, 9, 14, 27, 37, 77, 87, 125, 144, 157,
-				     166, 197, 207, 229, 254, 280, 297, 328,
-				     338, 364, 372, 386, 402, 421, 434, 439,
-				     445, 480, 496 };
-	const int unknown_gains[] = { 0 /* no gain values */ };
-
 	const int *ptr = NULL;
 	int len = 0;
 
@@ -995,18 +995,15 @@ int rtlsdr_get_tuner_gains(rtlsdr_dev_t *dev, int *gains)
 		ptr = r82xx_gains; len = sizeof(r82xx_gains);
 		break;
 	default:
-		ptr = unknown_gains; len = sizeof(unknown_gains);
-		break;
+		// unknown gains
+		return -2;
 	}
 
-	if (!gains) { /* no buffer provided, just return the count */
+	if (!gains) /* no buffer provided, just return the count */
 		return len / sizeof(int);
-	} else {
-		if (len)
-			memcpy(gains, ptr, len);
 
-		return len / sizeof(int);
-	}
+	memcpy(gains, ptr, len);
+	return len / sizeof(int);
 }
 
 int rtlsdr_set_tuner_bandwidth(rtlsdr_dev_t *dev, uint32_t bw)
@@ -1102,7 +1099,7 @@ int rtlsdr_set_sample_rate(rtlsdr_dev_t *dev, uint32_t samp_rate)
 	if ((samp_rate <= 225000) || (samp_rate > 3200000) ||
 	   ((samp_rate > 300000) && (samp_rate <= 900000))) {
 		fprintf(stderr, "Invalid sample rate: %u Hz\n", samp_rate);
-		return -EINVAL;
+		return -2;
 	}
 
 	rsamp_ratio = (dev->rtl_xtal * TWO_POW(22)) / samp_rate;
@@ -1140,12 +1137,12 @@ int rtlsdr_set_sample_rate(rtlsdr_dev_t *dev, uint32_t samp_rate)
 	return r;
 }
 
-uint32_t rtlsdr_get_sample_rate(rtlsdr_dev_t *dev)
+int rtlsdr_get_sample_rate(rtlsdr_dev_t *dev)
 {
 	if (!dev)
 		return -1;
 
-	return dev->rate;
+	return (int)(dev->rate);
 }
 
 int rtlsdr_set_testmode(rtlsdr_dev_t *dev, int on)

@@ -122,7 +122,6 @@ RTLSDR_API int rtlsdr_get_usb_strings(rtlsdr_dev_t *dev, char *manufact,
  * \return -2 if EEPROM size is exceeded
  * \return -3 if no EEPROM was found
  */
-
 RTLSDR_API int rtlsdr_write_eeprom(rtlsdr_dev_t *dev, uint8_t *data,
 				  uint8_t offset, uint16_t len);
 
@@ -148,9 +147,9 @@ RTLSDR_API int rtlsdr_set_center_freq(rtlsdr_dev_t *dev, uint32_t freq);
  * Get actual frequency the device is tuned to.
  *
  * \param dev the device handle given by rtlsdr_open()
- * \return 0 on error, frequency in Hz otherwise
+ * \return -1 on error, frequency in Hz otherwise
  */
-RTLSDR_API uint32_t rtlsdr_get_center_freq(rtlsdr_dev_t *dev);
+RTLSDR_API int rtlsdr_get_center_freq(rtlsdr_dev_t *dev);
 
 /*!
  * Set the frequency correction value for the device.
@@ -195,7 +194,7 @@ RTLSDR_API enum rtlsdr_tuner rtlsdr_get_tuner_type(rtlsdr_dev_t *dev);
  *
  * \param dev the device handle given by rtlsdr_open()
  * \param gains array of gain values. In tenths of a dB, 115 means 11.5 dB.
- * \return <= 0 on error, number of available (returned) gain values otherwise
+ * \return < 0 on error, number of available (returned) gain values otherwise
  */
 RTLSDR_API int rtlsdr_get_tuner_gains(rtlsdr_dev_t *dev, int *gains);
 
@@ -228,7 +227,7 @@ RTLSDR_API int rtlsdr_set_tuner_bandwidth(rtlsdr_dev_t *dev, uint32_t bw);
  * Get actual gain the device is configured to.
  *
  * \param dev the device handle given by rtlsdr_open()
- * \return 0 on error, gain in tenths of a dB, 115 means 11.5 dB.
+ * \return -1 on error, gain in tenths of a dB, 115 means 11.5 dB.
  */
 RTLSDR_API int rtlsdr_get_tuner_gain(rtlsdr_dev_t *dev);
 
@@ -261,7 +260,7 @@ RTLSDR_API int rtlsdr_set_tuner_gain_mode(rtlsdr_dev_t *dev, int manual);
  * 		    225001 - 300000 Hz
  * 		    900001 - 3200000 Hz
  * 		    sample loss is to be expected for rates > 2400000
- * \return 0 on success, -EINVAL on invalid rate
+ * \return 0 on success, -2 on invalid rate
  */
 RTLSDR_API int rtlsdr_set_sample_rate(rtlsdr_dev_t *dev, uint32_t rate);
 
@@ -269,9 +268,9 @@ RTLSDR_API int rtlsdr_set_sample_rate(rtlsdr_dev_t *dev, uint32_t rate);
  * Get actual sample rate the device is configured to.
  *
  * \param dev the device handle given by rtlsdr_open()
- * \return 0 on error, sample rate in Hz otherwise
+ * \return -1 on error, sample rate in Hz otherwise
  */
-RTLSDR_API uint32_t rtlsdr_get_sample_rate(rtlsdr_dev_t *dev);
+RTLSDR_API int rtlsdr_get_sample_rate(rtlsdr_dev_t *dev);
 
 /*!
  * Enable test mode that returns an 8 bit counter instead of the samples.
