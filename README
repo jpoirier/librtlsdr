@@ -7,7 +7,7 @@ http://sdr.osmocom.org/trac/wiki/rtl-sdr
 
 Build with cmake:
 
-    cd rtl-sdr/
+    cd librtlsdr/
     mkdir build
     cd build
     cmake ../
