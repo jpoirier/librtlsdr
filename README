@@ -1,3 +1,6 @@
+[![Circle CI](https://circleci.com/gh/jpoirier/librtlsdr.svg?style=svg)](https://circleci.com/gh/jpoirier/librtlsdr)
+
+
 rtl-sdr
 turns your Realtek RTL2832 based DVB dongle into a SDR receiver
 ===============================================================
