@@ -1698,6 +1698,8 @@ int rtlsdr_read_sync(rtlsdr_dev_t *dev, void *buf, int len, int *n_read)
 	if (!dev)
 		return -1;
 
+	rtlsdr_reset_buffer(dev);
+
 	if (dev->freq_current == 10) {
 		freq = 978000000;
 		dev->freq_current = 9;
