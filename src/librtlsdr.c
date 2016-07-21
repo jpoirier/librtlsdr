@@ -55,6 +55,9 @@
 #include "tuner_fc2580.h"
 #include "tuner_r82xx.h"
 
+#define STRATUX_DUALBAND
+
+
 typedef struct rtlsdr_tuner_iface {
 	/* tuner interface */
 	int (*init)(void *);
@@ -124,6 +127,11 @@ struct rtlsdr_dev {
 	int dev_lost;
 	int driver_active;
 	unsigned int xfer_errors;
+#ifdef STRATUX_DUALBAND
+	// bool uat_enabled;
+	// bool es_enabled;
+	uint8_t freq_current; // 10 (1090 MHz) or 9 (978 MHz)
+#endif
 };
 
 void rtlsdr_set_gpio_bit(rtlsdr_dev_t *dev, uint8_t gpio, int val);
@@ -1615,6 +1623,12 @@ found:
 
 	*out_dev = dev;
 
+#ifdef STRATUX_DUALBAND
+	// dev->uat_enabled = true;
+	// dev->es_enabled = true;
+	dev->freq_current = 10;
+#endif
+
 	return 0;
 err:
 	if (dev) {
@@ -1676,6 +1690,28 @@ int rtlsdr_reset_buffer(rtlsdr_dev_t *dev)
 	return 0;
 }
 
+#ifdef STRATUX_DUALBAND
+int rtlsdr_read_sync(rtlsdr_dev_t *dev, void *buf, int len, int *n_read)
+{
+	uint32_t freq;
+
+	if (!dev)
+		return -1;
+
+	if (dev->freq_current == 10) {
+		freq = 978000000;
+		dev->freq_current = 9;
+	} else {
+		freq = 1090000000;
+		dev->freq_current = 10;
+	}
+
+	((uint8_t*)dev)[0] = dev->freq_current;
+	rtlsdr_set_center_freq(dev, freq);
+
+	return libusb_bulk_transfer(dev->devh, 0x81, buf+1, len, n_read, BULK_TIMEOUT);
+}
+#else
 int rtlsdr_read_sync(rtlsdr_dev_t *dev, void *buf, int len, int *n_read)
 {
 	if (!dev)
@@ -1683,6 +1719,7 @@ int rtlsdr_read_sync(rtlsdr_dev_t *dev, void *buf, int len, int *n_read)
 
 	return libusb_bulk_transfer(dev->devh, 0x81, buf, len, n_read, BULK_TIMEOUT);
 }
+#endif
 
 static void LIBUSB_CALL _libusb_callback(struct libusb_transfer *xfer)
 {
