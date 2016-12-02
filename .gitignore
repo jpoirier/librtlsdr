@@ -39,6 +39,19 @@ CMakeCache.txt
 */CMakeFiles
 CMakeFiles
 *.cmake
+build
 
-.vscode
-.dirstamp
+**/*.o
+**/*.so*
+**/*.a
+src/rtl_adsb
+src/rtl_eeprom
+src/rtl_fm
+src/rtl_ir
+src/rtl_power
+src/rtl_rpcd
+src/rtl_test
+
+debianize/*.deb
+.cproject
+.project
