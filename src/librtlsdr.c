@@ -999,8 +999,8 @@ int rtlsdr_get_tuner_gains(rtlsdr_dev_t *dev, int *gains)
 		ptr = r82xx_gains; len = sizeof(r82xx_gains);
 		break;
 	default:
-		ptr = unknown_gains; len = sizeof(unknown_gains);
-		break;
+		// unknown gains
+		return -2;
 	}
 
 	if (!gains) { /* no buffer provided, just return the count */
