@@ -103,6 +103,7 @@ struct rtlsdr_dev {
 	void *cb_ctx;
 	enum rtlsdr_async_status async_status;
 	int async_cancel;
+	int use_zerocopy;
 	/* rtl demod context */
 	uint32_t rate; /* Hz */
 	uint32_t rtl_xtal; /* Hz */
@@ -958,20 +959,22 @@ enum rtlsdr_tuner rtlsdr_get_tuner_type(rtlsdr_dev_t *dev)
 	return dev->tuner_type;
 }
 
-/* all gain values are expressed in tenths of a dB */
-static const int e4k_gains[] = { -10, 15, 40, 65, 90, 115, 140, 165, 190, 215,
-			  240, 290, 340, 420 };
-static const int fc0012_gains[] = { -99, -40, 71, 179, 192 };
-static const int fc0013_gains[] = { -99, -73, -65, -63, -60, -58, -54, 58, 61,
-			       63, 65, 67, 68, 70, 71, 179, 181, 182,
-			       184, 186, 188, 191, 197 };
-static const int fc2580_gains[] = { 0 /* no gain values */ };
-static const int r82xx_gains[] = { 0, 9, 14, 27, 37, 77, 87, 125, 144, 157,
-			     166, 197, 207, 229, 254, 280, 297, 328,
-			     338, 364, 372, 386, 402, 421, 434, 439,
-			     445, 480, 496 };
 int rtlsdr_get_tuner_gains(rtlsdr_dev_t *dev, int *gains)
 {
+	/* all gain values are expressed in tenths of a dB */
+	const int e4k_gains[] = { -10, 15, 40, 65, 90, 115, 140, 165, 190, 215,
+				  240, 290, 340, 420 };
+	const int fc0012_gains[] = { -99, -40, 71, 179, 192 };
+	const int fc0013_gains[] = { -99, -73, -65, -63, -60, -58, -54, 58, 61,
+				       63, 65, 67, 68, 70, 71, 179, 181, 182,
+				       184, 186, 188, 191, 197 };
+	const int fc2580_gains[] = { 0 /* no gain values */ };
+	const int r82xx_gains[] = { 0, 9, 14, 27, 37, 77, 87, 125, 144, 157,
+				     166, 197, 207, 229, 254, 280, 297, 328,
+				     338, 364, 372, 386, 402, 421, 434, 439,
+				     445, 480, 496 };
+	const int unknown_gains[] = { 0 /* no gain values */ };
+
 	const int *ptr = NULL;
 	int len = 0;
 
@@ -1000,11 +1003,14 @@ int rtlsdr_get_tuner_gains(rtlsdr_dev_t *dev, int *gains)
 		return -2;
 	}
 
-	if (!gains) /* no buffer provided, just return the count */
+	if (!gains) { /* no buffer provided, just return the count */
 		return len / sizeof(int);
+	} else {
+		if (len)
+			memcpy(gains, ptr, len);
 
-	memcpy(gains, ptr, len);
-	return len / sizeof(int);
+		return len / sizeof(int);
+	}
 }
 
 int rtlsdr_set_tuner_bandwidth(rtlsdr_dev_t *dev, uint32_t bw)
@@ -1039,6 +1045,7 @@ int rtlsdr_set_tuner_gain(rtlsdr_dev_t *dev, int gain)
 		if (!r)
 			dev->gain = gain;
 	}
+
 	return r;
 }
 
@@ -1558,11 +1565,11 @@ int rtlsdr_open(rtlsdr_dev_t **out_dev, uint32_t index)
 	}
 
 	/* initialise GPIOs */
-	rtlsdr_set_gpio_output(dev, 5);
+	rtlsdr_set_gpio_output(dev, 4);
 
 	/* reset tuner before probing */
-	rtlsdr_set_gpio_bit(dev, 5, 1);
-	rtlsdr_set_gpio_bit(dev, 5, 0);
+	rtlsdr_set_gpio_bit(dev, 4, 1);
+	rtlsdr_set_gpio_bit(dev, 4, 0);
 
 	reg = rtlsdr_i2c_read_reg(dev, FC2580_I2C_ADDR, FC2580_CHECK_ADDR);
 	if ((reg & 0x7f) == FC2580_CHECK_VAL) {
@@ -1587,6 +1594,7 @@ found:
 	switch (dev->tuner_type) {
 	case RTLSDR_TUNER_R828D:
 		dev->tun_xtal = R828D_XTAL_FREQ;
+		/* fall-through */
 	case RTLSDR_TUNER_R820T:
 		/* disable Zero-IF mode */
 		rtlsdr_demod_write_reg(dev, 1, 0xb1, 0x1a, 1);
@@ -1733,12 +1741,49 @@ static int _rtlsdr_alloc_async_buffers(rtlsdr_dev_t *dev)
 			dev->xfer[i] = libusb_alloc_transfer(0);
 	}
 
-	if (!dev->xfer_buf) {
-		dev->xfer_buf = malloc(dev->xfer_buf_num *
-					   sizeof(unsigned char *));
+	if (dev->xfer_buf)
+		return -2;
 
-		for(i = 0; i < dev->xfer_buf_num; ++i)
+	dev->xfer_buf = malloc(dev->xfer_buf_num * sizeof(unsigned char *));
+	memset(dev->xfer_buf, 0, dev->xfer_buf_num * sizeof(unsigned char *));
+
+#if defined (__linux__) && LIBUSB_API_VERSION >= 0x01000105
+	fprintf(stderr, "Allocating %d zero-copy buffers\n", dev->xfer_buf_num);
+
+	dev->use_zerocopy = 1;
+	for (i = 0; i < dev->xfer_buf_num; ++i) {
+		dev->xfer_buf[i] = libusb_dev_mem_alloc(dev->devh, dev->xfer_buf_len);
+
+		if (!dev->xfer_buf[i]) {
+			fprintf(stderr, "Failed to allocate zero-copy "
+					"buffer for transfer %d\nFalling "
+					"back to buffers in userspace\n", i);
+
+			dev->use_zerocopy = 0;
+			break;
+		}
+	}
+
+	/* zero-copy buffer allocation failed (partially or completely)
+	 * we need to free the buffers again if already allocated */
+	if (!dev->use_zerocopy) {
+		for (i = 0; i < dev->xfer_buf_num; ++i) {
+			if (dev->xfer_buf[i])
+				libusb_dev_mem_free(dev->devh,
+						    dev->xfer_buf[i],
+						    dev->xfer_buf_len);
+		}
+	}
+#endif
+
+	/* no zero-copy available, allocate buffers in userspace */
+	if (!dev->use_zerocopy) {
+		for (i = 0; i < dev->xfer_buf_num; ++i) {
 			dev->xfer_buf[i] = malloc(dev->xfer_buf_len);
+
+			if (!dev->xfer_buf[i])
+				return -ENOMEM;
+		}
 	}
 
 	return 0;
@@ -1763,9 +1808,18 @@ static int _rtlsdr_free_async_buffers(rtlsdr_dev_t *dev)
 	}
 
 	if (dev->xfer_buf) {
-		for(i = 0; i < dev->xfer_buf_num; ++i) {
-			if (dev->xfer_buf[i])
-				free(dev->xfer_buf[i]);
+		for (i = 0; i < dev->xfer_buf_num; ++i) {
+			if (dev->xfer_buf[i]) {
+				if (dev->use_zerocopy) {
+#if defined (__linux__) && LIBUSB_API_VERSION >= 0x01000105
+					libusb_dev_mem_free(dev->devh,
+							    dev->xfer_buf[i],
+							    dev->xfer_buf_len);
+#endif
+				} else {
+					free(dev->xfer_buf[i]);
+				}
+			}
 		}
 
 		free(dev->xfer_buf);
@@ -1820,7 +1874,12 @@ int rtlsdr_read_async(rtlsdr_dev_t *dev, rtlsdr_read_async_cb_t cb, void *ctx,
 
 		r = libusb_submit_transfer(dev->xfer[i]);
 		if (r < 0) {
-			fprintf(stderr, "Failed to submit transfer %i!\n", i);
+			fprintf(stderr, "Failed to submit transfer %i\n"
+					"Please increase your allowed "
+					"usbfs buffer size with the "
+					"following command:\n"
+					"echo 0 > /sys/module/usbcore"
+					"/parameters/usbfs_memory_mb\n", i);
 			dev->async_status = RTLSDR_CANCELING;
 			break;
 		}
