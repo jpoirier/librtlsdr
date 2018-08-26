@@ -1042,12 +1042,9 @@ int rtlsdr_set_tuner_gain(rtlsdr_dev_t *dev, int gain)
 		rtlsdr_set_i2c_repeater(dev, 1);
 		r = dev->tuner->set_gain((void *)dev, gain);
 		rtlsdr_set_i2c_repeater(dev, 0);
+		if (!r)
+			dev->gain = gain;
 	}
-
-	if (!r)
-		dev->gain = gain;
-	else
-		dev->gain = 0;
 
 	return r;
 }
@@ -1878,7 +1875,7 @@ int rtlsdr_read_async(rtlsdr_dev_t *dev, rtlsdr_read_async_cb_t cb, void *ctx,
 		r = libusb_submit_transfer(dev->xfer[i]);
 		if (r < 0) {
 			fprintf(stderr, "Failed to submit transfer %i\n"
-					"Please increase your allowed " 
+					"Please increase your allowed "
 					"usbfs buffer size with the "
 					"following command:\n"
 					"echo 0 > /sys/module/usbcore"
