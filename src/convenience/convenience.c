@@ -49,9 +49,11 @@ double atofs(char *s)
 		case 'g':
 		case 'G':
 			suff *= 1e3;
+			/* fall-through */
 		case 'm':
 		case 'M':
 			suff *= 1e3;
+			/* fall-through */
 		case 'k':
 		case 'K':
 			suff *= 1e3;

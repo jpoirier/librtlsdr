@@ -39,7 +39,7 @@ endif()
 
 # Set the version information here
 set(VERSION_INFO_MAJOR_VERSION 0) # increment major on api compatibility changes
-set(VERSION_INFO_MINOR_VERSION 5) # increment minor on feature-level changes
+set(VERSION_INFO_MINOR_VERSION 6) # increment minor on feature-level changes
 set(VERSION_INFO_PATCH_VERSION git) # increment patch for bug fixes and docs
 include(Version) # setup version info
 
@@ -55,6 +55,9 @@ if(CMAKE_COMPILER_IS_GNUCC AND NOT WIN32)
     ADD_DEFINITIONS(-Wdeclaration-after-statement)
     #http://gcc.gnu.org/wiki/Visibility
     add_definitions(-fvisibility=hidden)
+elseif(MSVC14 OR MSVC14)
+#pthread-w32 issue, timespec is now part of time.h
+    ADD_DEFINITIONS(-D_TIMESPEC_DEFINED)
 endif()
 
 ########################################################################
@@ -62,7 +65,9 @@ endif()
 ########################################################################
 find_package(PkgConfig)
 find_package(LibUSB)
-set(THREADS_USE_PTHREADS_WIN32 true)
+if(WIN32 AND NOT MINGW)
+    set(THREADS_USE_PTHREADS_WIN32 true)
+endif()
 find_package(Threads)
 
 if(NOT LIBUSB_FOUND)
